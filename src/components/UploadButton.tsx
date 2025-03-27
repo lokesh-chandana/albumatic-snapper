@@ -31,7 +31,7 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     setPreviewImage(imageUrl);
     
     // Get image dimensions
-    const img = new Image();
+    const img = document.createElement('img');
     img.onload = () => {
       setDimensions({ width: img.width, height: img.height });
       setIsCropperOpen(true);
@@ -57,7 +57,7 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     });
     
     // Get dimensions of cropped image
-    const img = new Image();
+    const img = document.createElement('img');
     const imageUrl = URL.createObjectURL(croppedBlob);
     
     img.onload = () => {

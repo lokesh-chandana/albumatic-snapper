@@ -73,7 +73,10 @@ const AlbumPage = () => {
           <div className="relative mt-4 inline-block">
             <Button
               onClick={() => {
-                document.querySelector('input[type="file"]')?.click();
+                const fileInput = document.querySelector('input[type="file"]');
+                if (fileInput instanceof HTMLElement) {
+                  fileInput.click();
+                }
               }}
             >
               <Upload className="mr-2 h-4 w-4" />
