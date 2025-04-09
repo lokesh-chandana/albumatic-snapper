@@ -15,7 +15,7 @@ const HomePage = () => {
       <header className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Photo Albums</h1>
+            <h1 className="text-3xl font-bold tracking-tight">TechSorc Photo Albums</h1>
             <p className="mt-2 text-lg text-muted-foreground">
               Organize and manage your photo collections
             </p>

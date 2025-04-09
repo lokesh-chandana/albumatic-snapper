@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
-import { Plus, ImageIcon } from 'lucide-react';
+import { Plus, ImageIcon, Crop } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageCropper from './ImageCropper';
 
@@ -34,11 +34,19 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     // Get image dimensions
     const img = document.createElement('img');
     img.onload = () => {
-      setDimensions({ width: img.width, height: img.height });
-      setIsCropperOpen(true);
+      const imageDimensions = { width: img.width, height: img.height };
+      setDimensions(imageDimensions);
+      // Upload directly without opening cropper
+      onImageUpload(file, imageDimensions);
+      toast.success('Image uploaded successfully');
+      
+      // Clean up URL
+      URL.revokeObjectURL(imageUrl);
+      setSelectedFile(null);
+      setPreviewImage(null);
     };
     img.src = imageUrl;
-  }, []);
+  }, [onImageUpload]);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -75,7 +83,7 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
       setPreviewImage(null);
       setDimensions(null);
       
-      toast.success('Image uploaded successfully');
+      toast.success('Image cropped and updated successfully');
     };
     
     img.src = imageUrl;
@@ -110,7 +118,7 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
         </Button>
       </div>
 
-      {previewImage && selectedFile && (
+      {previewImage && selectedFile && isCropperOpen && (
         <ImageCropper
           open={isCropperOpen}
           onClose={() => {

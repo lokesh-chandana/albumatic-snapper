@@ -4,10 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, 
-  Upload, 
-  Image as ImageIcon, 
-  Trash2, 
-  Plus 
+  Trash2 
 } from 'lucide-react';
 import { useAlbumStore } from '@/lib/store';
 import PhotoCard from '@/components/PhotoCard';
@@ -116,23 +113,19 @@ const AlbumPage = () => {
       
       {photos.length === 0 ? (
         <div className="rounded-lg border border-dashed p-16 text-center">
-          <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <div className="mx-auto h-12 w-12 text-muted-foreground mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+              <circle cx="9" cy="9" r="2"></circle>
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+            </svg>
+          </div>
           <h3 className="text-lg font-medium">No photos in this album</h3>
           <p className="mt-2 text-sm text-muted-foreground">
             Upload some photos to get started.
           </p>
-          <div className="relative mt-4 inline-block">
-            <Button
-              onClick={() => {
-                const fileInput = document.querySelector('input[type="file"]');
-                if (fileInput instanceof HTMLElement) {
-                  fileInput.click();
-                }
-              }}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Photos
-            </Button>
+          <div className="mt-4 inline-block">
+            <UploadButton onImageUpload={handleImageUpload} albumId={albumId} />
           </div>
         </div>
       ) : (
