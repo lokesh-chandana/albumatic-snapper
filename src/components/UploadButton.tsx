@@ -1,8 +1,8 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
-import { Upload, Image } from 'lucide-react';
+import { Plus, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageCropper from './ImageCropper';
 
@@ -16,6 +16,7 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -39,13 +40,15 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     img.src = imageUrl;
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: {
       'image/*': []
     },
     maxFiles: 1,
-    multiple: false
+    multiple: false,
+    noClick: true,
+    noKeyboard: true
   });
 
   const handleCropComplete = (croppedBlob: Blob) => {
@@ -78,6 +81,12 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     img.src = imageUrl;
   };
 
+  const handleButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   useEffect(() => {
     return () => {
       // Clean up any object URLs when component unmounts
@@ -87,42 +96,21 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
 
   return (
     <>
-      <div
-        {...getRootProps()}
-        className={`rounded-lg border-2 border-dashed p-6 transition-colors ${
-          isDragActive
-            ? 'border-primary bg-primary/5 animate-pulse'
-            : 'border-border hover:border-primary/50 hover:bg-primary/5'
-        }`}
-      >
-        <input {...getInputProps()} />
-        <div className="flex flex-col items-center justify-center text-center">
-          <Upload
-            className={`h-10 w-10 mb-4 ${
-              isDragActive ? 'text-primary animate-bounce' : 'text-muted-foreground'
-            }`}
-          />
-          <h3 className="text-lg font-medium">Drag &amp; drop an image</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            or click to browse files
-          </p>
-          <Button 
-            variant="outline" 
-            className="mt-4 group relative overflow-hidden"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <span className="relative z-10 flex items-center transition-transform group-hover:translate-x-1">
-              <Image className="mr-2 h-4 w-4" />
-              Choose File
-            </span>
-            <span className="absolute inset-0 bg-primary/10 translate-x-full transition-transform group-hover:translate-x-0"></span>
-          </Button>
-        </div>
+      <div {...getRootProps()}>
+        <input 
+          {...getInputProps()} 
+          ref={fileInputRef}
+        />
+        <Button 
+          onClick={handleButtonClick} 
+          className="group"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Images
+        </Button>
       </div>
 
-      {previewImage && (
+      {previewImage && selectedFile && (
         <ImageCropper
           open={isCropperOpen}
           onClose={() => {

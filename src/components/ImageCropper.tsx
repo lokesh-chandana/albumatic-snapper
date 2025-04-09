@@ -8,7 +8,8 @@ import {
   DialogContent, 
   DialogFooter, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { CropArea } from '@/types';
 import { Check, X, RotateCcw } from 'lucide-react';
@@ -77,6 +78,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-center">Edit Image</DialogTitle>
+          <DialogDescription className="text-center">
+            Crop and adjust your image before uploading
+          </DialogDescription>
         </DialogHeader>
         
         <div className="relative w-full h-[400px] mt-2 rounded-md overflow-hidden">
@@ -225,6 +229,6 @@ async function getCroppedImg(
         return;
       }
       resolve(blob);
-    }, 'image/jpeg');
+    }, 'image/jpeg', 0.95); // Increased quality to 0.95 for better results
   });
 }
