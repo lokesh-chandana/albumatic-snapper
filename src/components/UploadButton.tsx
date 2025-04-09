@@ -2,9 +2,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
-import { Plus, ImageIcon, Crop } from 'lucide-react';
+import { Plus, Crop } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageCropper from './ImageCropper';
+import { uploadPhotoToStorage } from '@/lib/supabaseStorage';
 
 interface UploadButtonProps {
   onImageUpload: (file: File, dimensions: { width: number; height: number }) => void;
@@ -16,9 +17,10 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     
     const file = acceptedFiles[0];
@@ -33,20 +35,32 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     
     // Get image dimensions
     const img = document.createElement('img');
-    img.onload = () => {
+    img.onload = async () => {
       const imageDimensions = { width: img.width, height: img.height };
       setDimensions(imageDimensions);
-      // Upload directly without opening cropper
-      onImageUpload(file, imageDimensions);
-      toast.success('Image uploaded successfully');
       
-      // Clean up URL
-      URL.revokeObjectURL(imageUrl);
-      setSelectedFile(null);
-      setPreviewImage(null);
+      // Upload directly to Supabase
+      setIsUploading(true);
+      try {
+        // Call original onImageUpload to update local state for immediate feedback
+        onImageUpload(file, imageDimensions);
+        
+        // Upload to Supabase
+        await uploadPhotoToStorage(file, albumId, imageDimensions);
+        toast.success('Image uploaded successfully');
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.error('Failed to upload image');
+      } finally {
+        setIsUploading(false);
+        // Clean up URL
+        URL.revokeObjectURL(imageUrl);
+        setSelectedFile(null);
+        setPreviewImage(null);
+      }
     };
     img.src = imageUrl;
-  }, [onImageUpload]);
+  }, [onImageUpload, albumId]);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -56,10 +70,11 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     maxFiles: 1,
     multiple: false,
     noClick: true,
-    noKeyboard: true
+    noKeyboard: true,
+    disabled: isUploading
   });
 
-  const handleCropComplete = (croppedBlob: Blob) => {
+  const handleCropComplete = async (croppedBlob: Blob) => {
     if (!dimensions) return;
     
     // Convert blob to file
@@ -71,19 +86,30 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
     const img = document.createElement('img');
     const imageUrl = URL.createObjectURL(croppedBlob);
     
-    img.onload = () => {
+    img.onload = async () => {
       const newDimensions = { width: img.width, height: img.height };
-      onImageUpload(file, newDimensions);
       
-      // Clean up URLs
-      URL.revokeObjectURL(imageUrl);
-      if (previewImage) URL.revokeObjectURL(previewImage);
-      
-      setSelectedFile(null);
-      setPreviewImage(null);
-      setDimensions(null);
-      
-      toast.success('Image cropped and updated successfully');
+      setIsUploading(true);
+      try {
+        // Call original onImageUpload to update local state
+        onImageUpload(file, newDimensions);
+        
+        // Upload to Supabase
+        await uploadPhotoToStorage(file, albumId, newDimensions);
+        toast.success('Image cropped and uploaded successfully');
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.error('Failed to upload cropped image');
+      } finally {
+        setIsUploading(false);
+        // Clean up URLs
+        URL.revokeObjectURL(imageUrl);
+        if (previewImage) URL.revokeObjectURL(previewImage);
+        
+        setSelectedFile(null);
+        setPreviewImage(null);
+        setDimensions(null);
+      }
     };
     
     img.src = imageUrl;
@@ -112,9 +138,19 @@ const UploadButton = ({ onImageUpload, albumId }: UploadButtonProps) => {
         <Button 
           onClick={handleButtonClick} 
           className="group"
+          disabled={isUploading}
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Images
+          {isUploading ? (
+            <>
+              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Images
+            </>
+          )}
         </Button>
       </div>
 

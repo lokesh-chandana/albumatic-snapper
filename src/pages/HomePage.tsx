@@ -5,9 +5,11 @@ import { FolderPlus, Image } from 'lucide-react';
 import AlbumCard from '@/components/AlbumCard';
 import CreateAlbumDialog from '@/components/CreateAlbumDialog';
 import { useAlbumStore } from '@/lib/store';
+import { useAuth } from '@/contexts/AuthContext';
 
 const HomePage = () => {
   const { albums } = useAlbumStore();
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   return (
@@ -15,7 +17,6 @@ const HomePage = () => {
       <header className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">TechSorc Photo Albums</h1>
             <p className="mt-2 text-lg text-muted-foreground">
               Organize and manage your photo collections
             </p>

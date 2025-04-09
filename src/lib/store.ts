@@ -1,55 +1,28 @@
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { Album, Photo } from '@/types';
+import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { deletePhotoFromStorage } from './supabaseStorage';
 
 interface AlbumState {
   albums: Album[];
   photos: Photo[];
-  activeAlbumId: string | null;
-  
-  // Album actions
-  createAlbum: (name: string, description?: string) => Album;
-  updateAlbum: (id: string, data: Partial<Album>) => void;
+  createAlbum: (name: string, description?: string) => void;
+  updateAlbum: (id: string, updates: Partial<Album>) => void;
   deleteAlbum: (id: string) => void;
-  setActiveAlbum: (id: string | null) => void;
-  
-  // Photo actions
-  addPhoto: (albumId: string, file: File, dimensions: { width: number, height: number }) => Photo;
-  updatePhoto: (id: string, data: Partial<Photo>) => void;
-  deletePhoto: (id: string) => void;
-  getAlbumPhotos: (albumId: string) => Photo[];
+  getAlbum: (id: string) => Album | undefined;
+  addPhoto: (photo: Photo) => void;
+  deletePhoto: (photoId: string) => void;
+  getPhotosForAlbum: (albumId: string) => Photo[];
+  clearUserData: () => void;
 }
 
 export const useAlbumStore = create<AlbumState>()(
   persist(
     (set, get) => ({
-      albums: [
-        {
-          id: 'default',
-          name: 'My First Album',
-          description: 'A collection of my favorite memories',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'travel',
-          name: 'Travel Adventures',
-          description: 'Exploring the world one photo at a time',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'family',
-          name: 'Family',
-          description: 'Precious moments with loved ones',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      ],
+      albums: [],
       photos: [],
-      activeAlbumId: null,
       
       createAlbum: (name, description) => {
         const newAlbum: Album = {
@@ -67,87 +40,78 @@ export const useAlbumStore = create<AlbumState>()(
         return newAlbum;
       },
       
-      updateAlbum: (id, data) => {
+      updateAlbum: (id, updates) => {
         set((state) => ({
           albums: state.albums.map((album) => 
-            album.id === id 
-              ? { ...album, ...data, updatedAt: new Date() } 
+            album.id === id
+              ? { ...album, ...updates, updatedAt: new Date() }
               : album
           ),
         }));
       },
       
       deleteAlbum: (id) => {
+        // First delete all photos in the album from storage
+        const photosToDelete = get().getPhotosForAlbum(id);
+        photosToDelete.forEach(photo => {
+          if (photo.src) {
+            deletePhotoFromStorage(photo.src).catch(console.error);
+          }
+        });
+        
         set((state) => ({
           albums: state.albums.filter((album) => album.id !== id),
           photos: state.photos.filter((photo) => photo.albumId !== id),
-          activeAlbumId: state.activeAlbumId === id ? null : state.activeAlbumId,
         }));
       },
       
-      setActiveAlbum: (id) => {
-        set({ activeAlbumId: id });
+      getAlbum: (id) => {
+        return get().albums.find((album) => album.id === id);
       },
       
-      addPhoto: (albumId, file, dimensions) => {
-        const newPhoto: Photo = {
-          id: uuidv4(),
-          albumId,
-          file,
-          src: URL.createObjectURL(file),
-          name: file.name,
-          width: dimensions.width,
-          height: dimensions.height,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
+      addPhoto: (photo) => {
         set((state) => ({
-          photos: [...state.photos, newPhoto],
+          photos: [...state.photos, photo],
         }));
         
-        // Update album cover if this is the first photo
-        const albumPhotos = get().getAlbumPhotos(albumId);
+        // Update album cover if it's the first photo
+        const albumPhotos = get().getPhotosForAlbum(photo.albumId);
         if (albumPhotos.length === 1) {
-          get().updateAlbum(albumId, { coverImage: newPhoto.src });
+          get().updateAlbum(photo.albumId, { coverImage: photo.src });
+        }
+      },
+      
+      deletePhoto: (photoId) => {
+        const photoToDelete = get().photos.find(photo => photo.id === photoId);
+        
+        if (photoToDelete?.src) {
+          deletePhotoFromStorage(photoToDelete.src).catch(console.error);
         }
         
-        return newPhoto;
-      },
-      
-      updatePhoto: (id, data) => {
         set((state) => ({
-          photos: state.photos.map((photo) => 
-            photo.id === id 
-              ? { ...photo, ...data, updatedAt: new Date() } 
-              : photo
-          ),
-        }));
-      },
-      
-      deletePhoto: (id) => {
-        const photo = get().photos.find(p => p.id === id);
-        
-        set((state) => ({
-          photos: state.photos.filter((p) => p.id !== id),
+          photos: state.photos.filter((photo) => photo.id !== photoId),
         }));
         
-        // Update album cover if needed
-        if (photo) {
-          const albumPhotos = get().getAlbumPhotos(photo.albumId);
-          if (albumPhotos.length > 0) {
-            const album = get().albums.find(a => a.id === photo.albumId);
-            if (album && album.coverImage === photo.src) {
-              get().updateAlbum(photo.albumId, { coverImage: albumPhotos[0].src });
+        // If photo was album cover, update with another photo if available
+        if (photoToDelete) {
+          const album = get().getAlbum(photoToDelete.albumId);
+          if (album?.coverImage === photoToDelete.src) {
+            const remainingPhotos = get().getPhotosForAlbum(photoToDelete.albumId);
+            if (remainingPhotos.length > 0) {
+              get().updateAlbum(photoToDelete.albumId, { coverImage: remainingPhotos[0].src });
+            } else {
+              get().updateAlbum(photoToDelete.albumId, { coverImage: undefined });
             }
-          } else {
-            get().updateAlbum(photo.albumId, { coverImage: undefined });
           }
         }
       },
       
-      getAlbumPhotos: (albumId) => {
+      getPhotosForAlbum: (albumId) => {
         return get().photos.filter((photo) => photo.albumId === albumId);
+      },
+      
+      clearUserData: () => {
+        set({ albums: [], photos: [] });
       },
     }),
     {
